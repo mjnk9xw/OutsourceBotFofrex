@@ -2,7 +2,6 @@ from datetime import datetime as dt
 import MetaTrader5 as mt5
 from time import sleep
 import pandas as pd
-import pytz
 
 # display data on the MetaTrader 5 package
 print("MetaTrader5 package author: ",mt5.__author__)
@@ -68,7 +67,7 @@ if not selected:
 
 def get_last_tick(symbol):
     last_tick = mt5.symbol_info_tick(symbol)
-    print(mt5.symbol_info_tick(symbol))
+    print("get_last_tick = ",mt5.symbol_info_tick(symbol))
     return last_tick
 
 
@@ -187,85 +186,92 @@ def determine_result(open_price,close_price):
     elif open_price <= close_price:
         return 'positive'
 
+def main():
 
-date_from = dt(2021,6,5,4)
-date_to = dt(2021,6,5,5)
+    # date_from = dt.now()
+    # date_to = dt(2021,6,10,23,59,59)
+    #
+    has_last_price = False
+    buy_signal = False
+    sell_signal = False
 
-has_last_price = False
-buy_signal = False
-sell_signal = False
+    print("begin run cal")
+    while True:
 
-print("begin run cal")
-while True:
+        if has_last_price == False and dt.now().minute % timeframe == 0:
+            last_price = get_last_tick(symbol_to_trade.name).ask
+            has_last_price = True
+            print("last price = ",last_price)
+            print("sleep 60")
+            sleep(60)
 
-    if has_last_price == False and dt.now().minute % timeframe == 0:
-        last_price = get_last_tick(symbol_to_trade.name).ask
-        has_last_price = True
-        print("last price = ",last_price)
-        print("sleep 180")
-        sleep(60)
+        if has_last_price == True and dt.now().minute % timeframe == 0:
+            current_price = get_last_tick(symbol_to_trade.name).ask
+            print("last price = ", current_price)
+            delta = current_price - last_price
+            print("delta = ", delta)
+            if delta > 0:
+                buy_signal = True
+            else:
+                sell_signal = True
 
-    if has_last_price == True and dt.now().minute % timeframe == 0:
-        current_price = get_last_tick(symbol_to_trade.name).ask
-        print("last price = ", current_price)
-        delta = current_price - last_price
-        print("delta = ", delta)
-        if delta > 0:
-            buy_signal = True
-        else:
-            sell_signal = True
+            break
 
-        break
+        print("sleep 1")
+        sleep(1)
 
-    print("sleep 1")
-    sleep(1)
+    print("chot lenh")
+    if buy_signal == True:
+        result, request = send_order_buy(symbol=symbol_to_trade.name,
+                                         lot_size=symbol_to_trade.lot_size,
+                                         stop_loss=symbol_to_trade.stop_loss,
+                                         take_profit=symbol_to_trade.take_profit,
+                                         comments=current_ea_comments)
+        print("buy_signal = ", request)
+        print("buy_signal = ", result)
+    elif sell_signal == True:
+        result, request = send_order_sell(symbol=symbol_to_trade.name,
+                                          lot_size=symbol_to_trade.lot_size,
+                                          stop_loss=symbol_to_trade.stop_loss,
+                                          take_profit=symbol_to_trade.take_profit,
+                                          comments=current_ea_comments)
+        print("sell_signal = ", request)
+        print("sell_signal = ", result)
+    print("end")
 
-print("chot lenh")
-if buy_signal == True:
-    result, request = send_order_buy(symbol=symbol_to_trade.name,
-                                     lot_size=symbol_to_trade.lot_size,
-                                     stop_loss=symbol_to_trade.stop_loss,
-                                     take_profit=symbol_to_trade.take_profit,
-                                     comments=current_ea_comments)
-elif sell_signal == True:
-    result, request = send_order_sell(symbol=symbol_to_trade.name,
-                                      lot_size=symbol_to_trade.lot_size,
-                                      stop_loss=symbol_to_trade.stop_loss,
-                                      take_profit=symbol_to_trade.take_profit,
-                                      comments=current_ea_comments)
+    while True:
+        buy_signal = False
+        sell_signal = False
+        if dt.now().minute % timeframe == 0:
 
-print("end")
+            close_trade('sell',request,result,close_order_deviation)
+            close_trade('buy',request,result,close_order_deviation)
 
-# while True:
-#     buy_signal = False
-#     sell_signal = False
-#     if dt.now().minute % timeframe == 0:
-#
-#         close_trade('sell',request,result,close_order_deviation)
-#         close_trade('buy',request,result,close_order_deviation)
-#
-#         last_price = current_price
-#         current_price = get_last_tick(symbol_to_trade.name).ask
-#         delta = current_price - last_price
-#
-#         if delta > 0:
-#             buy_signal = True
-#         elif delta < 0:
-#             sell_signal = True
-#
-#         if buy_signal == True:
-#             result, request = send_order_buy(symbol=symbol_to_trade.name,
-#                                              lot_size=symbol_to_trade.lot_size,
-#                                              stop_loss=symbol_to_trade.stop_loss,
-#                                              take_profit=symbol_to_trade.take_profit,
-#                                              comments=current_ea_comments)
-#         elif sell_signal == True:
-#             result, request = send_order_sell(symbol=symbol_to_trade.name,
-#                                               lot_size=symbol_to_trade.lot_size,
-#                                               stop_loss=symbol_to_trade.stop_loss,
-#                                               take_profit=symbol_to_trade.take_profit,
-#                                               comments=current_ea_comments)
-#
-#         sleep(120)
-#
-#     sleep(1)
+            last_price = current_price
+            current_price = get_last_tick(symbol_to_trade.name).ask
+            delta = current_price - last_price
+
+            if delta > 0:
+                buy_signal = True
+            elif delta < 0:
+                sell_signal = True
+
+            if buy_signal == True:
+                result, request = send_order_buy(symbol=symbol_to_trade.name,
+                                                 lot_size=symbol_to_trade.lot_size,
+                                                 stop_loss=symbol_to_trade.stop_loss,
+                                                 take_profit=symbol_to_trade.take_profit,
+                                                 comments=current_ea_comments)
+            elif sell_signal == True:
+                result, request = send_order_sell(symbol=symbol_to_trade.name,
+                                                  lot_size=symbol_to_trade.lot_size,
+                                                  stop_loss=symbol_to_trade.stop_loss,
+                                                  take_profit=symbol_to_trade.take_profit,
+                                                  comments=current_ea_comments)
+
+            sleep(60)
+
+        sleep(1)
+
+if __name__ == "__main__":
+    main()
